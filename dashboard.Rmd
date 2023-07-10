@@ -31,10 +31,10 @@ library(tidyr)
 
 # Options
 options(scipen = 9999) # No scientific notation
-options(knitr.kable.NA = '—')
+options(knitr.kable.NA = "—")
 
-# Create connections to CCAO and RPIE DB. Here connection credentials are loaded from env var
-# Only works while connected to CCAO's VPN or in office
+# Create connections to CCAO and RPIE DB. Here connection credentials are loaded
+# from env vars. Only works while connected to CCAO's VPN or in office
 RPIE <- dbConnect(
   odbc(),
   .connection_string = Sys.getenv("DB_CONFIG_CCAOAPPSRV")
@@ -45,13 +45,13 @@ noctua_options(cache_size = 10)
 
 AWS_ATHENA_CONN_NOCTUA <- dbConnect(
   noctua::athena(),
-  s3_staging_dir='s3://ccao-athena-results-us-east-1'
+  s3_staging_dir = "s3://ccao-athena-results-us-east-1"
 )
 
 # SQL queries used to load data from the CCAO SQL database
 source(here("scripts", "queries.R"))
 
-# convenient help functions to clean data
+# Convenient help functions to clean data
 source(here("scripts", "helper_functions.R"))
 
 # Grab version number and commit from environment
@@ -73,48 +73,59 @@ if (!file.exists("pin_data.parquet")) {
 rpie_data <- qry_buildings(RPIE) %>%
   left_join(qry_res_spaces(RPIE), by = "BuildingId") %>%
   left_join(qry_com_spaces(RPIE), by = "BuildingId") %>%
-  # detailed income and expense data is presented in detail, not as ratios
+  # Detailed income and expense data is presented in detail, not as ratios
   left_join(qry_generalexpenses(RPIE), by = "FilingId") %>%
   left_join(qry_hotelexpenses(RPIE), by = "FilingId") %>%
-  # we need to clean address a bit after our pull
+  # We need to clean address a bit after our pull
   left_join(
     read_parquet(here::here("pin_data.parquet"))
     %>% address_clean(),
     by = c("PIN", "TaxYear")
-    ) %>%
+  ) %>%
   left_join(ccao::town_dict, by = "township_code") %>%
   # For residential spaces with 0 rent, we want to convert to NA in cases
   # where that 0 rent is referring to an owner occupied unit or a unit
   # with a tenant receiving free rent
   mutate(
     across(
-    c(StudioRent:Bedroom4Rent),
-    ~ ifelse(.x == 0 & (ResidentialFreeRent > 0 | ResOwnerOccupied > 0), NA, .x)
+      c(StudioRent:Bedroom4Rent),
+      ~ ifelse(
+        .x == 0 & (ResidentialFreeRent > 0 | ResOwnerOccupied > 0),
+        NA,
+        .x
+      )
     ),
-  # user submitted unit count and actual count of units can disagree, take larger count
-  ResidentialUnitCount = pmax(ResidentialUnitCount, ResidentialUnits, na.rm = T),
-  CommercialUnitCount = pmax(CommercialUnitCount, CommercialUnits, na.rm = T),
+    # User submitted unit count and actual count of units
+    # can disagree, take larger count
+    ResidentialUnitCount = pmax(
+      ResidentialUnitCount, ResidentialUnits,
+      na.rm = TRUE
+    ),
+    CommercialUnitCount = pmax(
+      CommercialUnitCount, CommercialUnits,
+      na.rm = TRUE
+    ),
   ) %>%
   # Remove RPIE test submissions
   filter(PIN != "99999999999999") %>%
-  # remove non-IC PINs
+  # Remove non-IC PINs
   filter(!is.na(class))
 
 # Subclass class definitions and color palette for map points
 # Commercial
 class_5a <- c(
-  '500', '535', '501', '516', '517', '522', '523',
-  '526', '527', '528', '529', '530', '531', '532',
-  '533', '535', '590', '591', '592', '597', '599'
+  "500", "535", "501", "516", "517", "522", "523",
+  "526", "527", "528", "529", "530", "531", "532",
+  "533", "535", "590", "591", "592", "597", "599"
 )
 # Industrial
-class_5b <- c('550', '580', '581', '583', '587', '589', '593')
+class_5b <- c("550", "580", "581", "583", "587", "589", "593")
 
 palette <- c(
   ccao_colors$buttermilk, ccao_colors$navy, ccao_colors$lightblue,
-  ccao_colors$green, ccao_colors$brown, ccao_colors$gold, ccao_colors$lightgreen,
-  "#e6550d"
-) # red-orange
+  ccao_colors$green, ccao_colors$brown, ccao_colors$gold,
+  ccao_colors$lightgreen, "#e6550d"
+)
 ```
 
 Sidebar {.sidebar data-width=175}
@@ -128,7 +139,10 @@ Sidebar {.sidebar data-width=175}
 selectizeInput(
   inputId = "year_selector",
   label = "Reporting Years",
-  choices = rpie_data %>% distinct(TaxYear) %>% rename("Reporting Year" = "TaxYear") %>% drop_na(),
+  choices = rpie_data %>%
+    distinct(TaxYear) %>%
+    rename("Reporting Year" = "TaxYear") %>%
+    drop_na(),
   selected = NULL,
   multiple = TRUE
 )
@@ -136,7 +150,11 @@ selectizeInput(
 selectizeInput(
   inputId = "class_selector",
   label = "Classes",
-  choices = rpie_data %>% distinct(class) %>% rename("Class" = "class") %>% drop_na() %>% arrange(Class),
+  choices = rpie_data %>%
+    distinct(class) %>%
+    rename("Class" = "class") %>%
+    drop_na() %>%
+    arrange(Class),
   selected = NULL,
   multiple = TRUE
 )
@@ -144,7 +162,10 @@ selectizeInput(
 selectizeInput(
   inputId = "triad_selector",
   label = "Triads",
-  choices = rpie_data %>% distinct(triad_name) %>% rename("Triad" = "triad_name") %>% drop_na(),
+  choices = rpie_data %>%
+    distinct(triad_name) %>%
+    rename("Triad" = "triad_name") %>%
+    drop_na(),
   selected = NULL,
   multiple = TRUE
 )
@@ -152,7 +173,10 @@ selectizeInput(
 selectizeInput(
   inputId = "township_selector",
   label = "Townships",
-  choices = rpie_data %>% distinct(township_name) %>% rename("Township" = "township_name") %>% drop_na() %>%
+  choices = rpie_data %>%
+    distinct(township_name) %>%
+    rename("Township" = "township_name") %>%
+    drop_na() %>%
     arrange(Township),
   selected = NULL,
   multiple = TRUE
@@ -168,7 +192,10 @@ selectizeInput(
 selectizeInput(
   inputId = "muni_selector",
   label = "Municipalities",
-  choice = rpie_data %>% distinct(municipality) %>% rename("Municipality" = "municipality") %>% drop_na() %>%
+  choice = rpie_data %>%
+    distinct(municipality) %>%
+    rename("Municipality" = "municipality") %>%
+    drop_na() %>%
     arrange(Municipality),
   selected = NULL,
   multiple = TRUE
@@ -204,37 +231,54 @@ selectizeInput(
 selectizeInput(
   inputId = "expense_selector",
   label = "Calculate expense ratios from filings with attached",
-  choices = rpie_data %>% distinct(ExpenseType) %>% rename("Tax Form" = "ExpenseType") %>% drop_na(),
+  choices = rpie_data %>%
+    distinct(ExpenseType) %>%
+    rename("Tax Form" = "ExpenseType") %>%
+    drop_na(),
   selected = NULL,
   multiple = TRUE
 )
 
 hr()
 renderText("Filter out:")
-checkboxInput("free_rent_check", label = "Buildings with Free Rent", value = F)
-checkboxInput("affordable_check", label = "Buildings with Affordable or Subsidized Units", value = F)
-checkboxInput("own_occ_check", label = "Owner Occupied Buildings", value = F)
+checkboxInput(
+  "free_rent_check",
+  label = "Buildings with Free Rent",
+  value = FALSE
+)
+checkboxInput(
+  "affordable_check",
+  label = "Buildings with Affordable or Subsidized Units",
+  value = FALSE
+)
+checkboxInput(
+  "own_occ_check",
+  label = "Owner Occupied Buildings",
+  value = FALSE
+)
 
-# commit information
+# Commit information
 hr()
 renderText(glue("Version: {vcs_version} {vcs_commit_sha}"))
 
 
 ### ---------------------------
-### create dataset
+### Create dataset
 ###
 
 selected_data <- reactive({
-
   # Filter down to selected_data based on above selectors
   df <- rpie_data %>%
     filter(
-      !is.na(!!sym(input$space_type_selector)), # convert the RHS into a symbol then evaluate (!!), filtering out NA values in selected column
+      # Convert the RHS into a symbol then evaluate (!!), filtering out
+      # NA values in selected column
+      # Required to return the full dataset when input is NULL or FALSE
+      !is.na(!!sym(input$space_type_selector)),
       if (!is.null(input$triad_selector)) {
         triad_name %in% input$triad_selector
       } else {
         TRUE
-      }, # Required to return the full dataset when input is NULL or FALSE
+      },
       if (!is.null(input$year_selector)) {
         TaxYear %in% input$year_selector
       } else {
@@ -260,23 +304,23 @@ selected_data <- reactive({
       } else {
         TRUE
       },
+      # Free rent == 0 or NA
       if (input$free_rent_check) {
         ResidentialFreeRent %in% c(0, NA) & CommercialFreeRent %in% c(0, NA)
-      } # Free rent == 0 or NA
-      else {
+      } else {
         TRUE
       },
+      # Free rent == 0 or NA
       if (input$affordable_check) {
         (is.na(AffordableUnits_LIHTC) | AffordableUnits_LIHTC == 0) &
           (is.na(AffordableUnits_PB) | AffordableUnits_PB == 0)
-      } # Free rent == 0 or NA
-      else {
+      } else {
         TRUE
       },
+      # Free rent == 0 or NA
       if (input$own_occ_check) {
         ResOwnerOccupied %in% c(FALSE, NA) & ComOwnerOccupied %in% c(FALSE, NA)
-      } # Not or NA owner occupancy
-      else {
+      } else {
         TRUE
       }
     )
@@ -285,16 +329,16 @@ selected_data <- reactive({
   if (input$space_type_selector == "PIN") {
     df <- df %>% mutate(
       LegendChoice = case_when(
-        # Pull major classes
-        # https://prodassets.cookcountyassessor.com/s3fs-public/form_documents/classcode.pdf
-        # 500 class is broken out between industrial (5B) and commercial (5A)
+        # Pull major classes, 500 class is broken out between
+        # industrial (5B) and commercial (5A)
         class %in% c(
-          '500', '535', '501', '516', '517', '522', '523',
-          '526', '527', '528', '529', '530', '531', '532',
-          '533', '535', '590', '591', '592', '597', '599'
+          "500", "535", "501", "516", "517", "522", "523",
+          "526", "527", "528", "529", "530", "531", "532",
+          "533", "535", "590", "591", "592", "597", "599"
         ) ~ "5A",
-        class %in% c('550', '580', '581', '583', '587', '589', '593') ~ "5B",
-        TRUE ~ substr(class, 1, 1) # Everything else just takes the first digit as a character
+        class %in% c("550", "580", "581", "583", "587", "589", "593") ~ "5B",
+        # Everything else just takes the first digit as a character
+        TRUE ~ substr(class, 1, 1)
       )
     )
   } else if (input$space_type_selector == "CommercialUnitCount") {
@@ -313,11 +357,14 @@ selected_data <- reactive({
 
   # Convert PIN to pretty format and make data distinct at building level
   # The variables are aggregated to the building level
-  # but the ingested data is unique to the PIN level resulting in duplicate values based
-  # on the # of associated PINs. This distinct call fixes that
+  # but the ingested data is unique to the PIN level resulting in duplicate
+  # values based on the # of associated PINs. This distinct call fixes that
   df <- df %>%
     group_by(BuildingId) %>%
-    mutate(PIN = paste0(ccao::pin_format_pretty(PIN, full_length = TRUE), collapse = ", ")) %>%
+    mutate(PIN = paste0(
+      ccao::pin_format_pretty(PIN, full_length = TRUE),
+      collapse = ", "
+    )) %>%
     distinct(BuildingId, .keep_all = TRUE) %>%
     ungroup()
 })
@@ -340,12 +387,12 @@ color_pal <- reactive({
     colorQuantile(
       palette = c("#fee6ce", "#e6550d"),
       domain = selected_data()$LegendChoice
-    ) # Rent/Sqft
+    )
   } else {
     colorFactor(
       palette = palette,
       domain = selected_data()$LegendChoice
-    ) # PIN
+    )
   }
 })
 
@@ -355,12 +402,27 @@ color_pal <- reactive({
 renderLeaflet({
   pal <- color_pal()
 
-  if (input$space_type_selector == "PIN") legend_title <-
-      paste0(format(nrow(selected_data()), big.mark = ","), " Buildings <hr> Major Class")
-  if (input$space_type_selector == "CommercialUnitCount") legend_title <-
-      paste0(format(nrow(selected_data()), big.mark = ","), " Buildings <hr> Commercial Rent / Square Foot <br> (by quartile)")
-  if (input$space_type_selector == "ResidentialUnitCount") legend_title <-
-      paste0(format(nrow(selected_data()), big.mark = ","), " Buildings <hr> Residential Rent / Square Foot <br> (by quartile)")
+  if (input$space_type_selector == "PIN") {
+    legend_title <-
+      paste0(
+        format(nrow(selected_data()), big.mark = ","),
+        " Buildings <hr> Major Class"
+      )
+  }
+  if (input$space_type_selector == "CommercialUnitCount") {
+    legend_title <-
+      paste0(
+        format(nrow(selected_data()), big.mark = ","),
+        " Buildings <hr> Commercial Rent / Square Foot <br> (by quartile)"
+      )
+  }
+  if (input$space_type_selector == "ResidentialUnitCount") {
+    legend_title <-
+      paste0(
+        format(nrow(selected_data()), big.mark = ","),
+        " Buildings <hr> Residential Rent / Square Foot <br> (by quartile)"
+      )
+  }
 
 
   leaflet(selected_data()) %>%
@@ -379,9 +441,11 @@ renderLeaflet({
         "<br/> <b> Municipality: </b>", municipality,
         "<hr> <b> Building ID: </b>", BuildingId,
         "<br/> <b> Residential Units: </b>", ResidentialUnitCount,
-        "<br/> <b> Residential Rent Per SF: </b>", scales::dollar(ResidentialRentPerSquareFoot),
+        "<br/> <b> Residential Rent Per SF: </b>",
+        scales::dollar(ResidentialRentPerSquareFoot),
         "<br/> <b> Commercial Units: </b>", CommercialUnitCount,
-        "<br/> <b> Commercial Rent Per SF: </b>", scales::dollar(CommercialRentPerSquareFoot)
+        "<br/> <b> Commercial Rent Per SF: </b>",
+        scales::dollar(CommercialRentPerSquareFoot)
       ),
       fillColor = ~ pal(LegendChoice),
       fillOpacity = 0.9,
@@ -402,10 +466,8 @@ renderLeaflet({
 ### Residential Rent
 
 ```{r}
-
 renderPlotly({
-  
-  # clean and rearrange data for rent chart
+  # Clean and rearrange data for rent chart
   df <- selected_data() %>%
     select(PIN,
       "Studio" = StudioRent,
@@ -414,9 +476,14 @@ renderPlotly({
       "3 Bedroom" = Bedroom3Rent,
       "4+ Bedroom" = Bedroom4Rent
     ) %>%
-      # remove outliers, 0 values, and other values that are too large to be realistic by # of bedrooms
-      mutate(across(Studio:`4+ Bedroom`, purge_outliers)) %>% # purge_outliers() is defined in helper_functions.R
-      mutate(across(Studio:`4+ Bedroom`, ~replace(., !dplyr::between(., 1, 5000), NA))) %>%
+    # Remove outliers, 0 values, and other values that are too
+    # large to be realistic by # of bedrooms
+    # purge_outliers() is defined in helper_functions.R
+    mutate(across(Studio:`4+ Bedroom`, purge_outliers)) %>%
+    mutate(across(
+      Studio:`4+ Bedroom`,
+      ~ replace(., !dplyr::between(., 1, 5000), NA)
+    )) %>%
     pivot_longer(
       cols = Studio:`4+ Bedroom`,
       names_to = "rental_space",
@@ -424,28 +491,38 @@ renderPlotly({
     ) %>%
     drop_na() %>%
     # This mutate call corrects the order of the objects on the plot
-    mutate(rental_space = factor(rental_space, levels = c("Studio", "1 Bedroom", "2 Bedroom", "3 Bedroom", "4+ Bedroom")))
-  
-  # check to see if there is any data for chart
-  if (any(!is.na(df$rent))) {
-    
-      ggplotly(
-        ggplot(
-          df,
-          aes(x = rental_space, y = rent, fill = rental_space, halign = 0,
-              text = paste0("PIN(s): ", unique(substr(PIN, 1, 13)),
-                            "\nRent: ", scales::dollar(rent))),
-          ) +
-          geom_boxplot() +
-          geom_jitter(width = 0.05, alpha = 0.7) +
-          theme_minimal() +
-          theme(legend.position = "none", axis.title.y = element_blank(), axis.title.x = element_blank()) +
-          scale_y_continuous(labels = scales::dollar_format()),
-        tooltip = "text"
-        )
-    
-  }
+    mutate(rental_space = factor(
+      rental_space,
+      levels = c(
+        "Studio", "1 Bedroom", "2 Bedroom", "3 Bedroom", "4+ Bedroom"
+      )
+    ))
 
+  # Check to see if there is any data for chart
+  if (any(!is.na(df$rent))) {
+    ggplotly(
+      ggplot(
+        df,
+        aes(
+          x = rental_space, y = rent, fill = rental_space, halign = 0,
+          text = paste0(
+            "PIN(s): ", unique(substr(PIN, 1, 13)),
+            "\nRent: ", scales::dollar(rent)
+          )
+        ),
+      ) +
+        geom_boxplot() +
+        geom_jitter(width = 0.05, alpha = 0.7) +
+        theme_minimal() +
+        theme(
+          legend.position = "none",
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank()
+        ) +
+        scale_y_continuous(labels = scales::dollar_format()),
+      tooltip = "text"
+    )
+  }
 })
 ```
 
@@ -458,14 +535,26 @@ Row
 renderUI({
   # This section performs all of the primary transformations to the data
   summary_table <- selected_data() %>%
-    mutate(ResidentialVacancy = ResidentialVacancies / ResidentialUnitCount,
-         CommercialVacancy = CommercialVacancies / CommercialUnitCount) %>%
-    mutate(ResidentialVacancy = ifelse(ResidentialVacancy <= 1, ResidentialVacancy, NA),
-         CommercialVacancy = ifelse(CommercialVacancy <= 1, CommercialVacancy, NA)) %>%
-    # we only want to show expense ratios using certain tax returns according to use input
-    mutate(ExpenseRatio = ifelse(!is.null(input$expense_selector) & !(ExpenseType %in% input$expense_selector),
-                                 NA,
-                                 ExpenseRatio)) %>%
+    mutate(
+      ResidentialVacancy = ResidentialVacancies / ResidentialUnitCount,
+      CommercialVacancy = CommercialVacancies / CommercialUnitCount
+    ) %>%
+    mutate(
+      ResidentialVacancy = ifelse(
+        ResidentialVacancy <= 1, ResidentialVacancy, NA
+      ),
+      CommercialVacancy = ifelse(
+        CommercialVacancy <= 1, CommercialVacancy, NA
+      )
+    ) %>%
+    # We only want to show expense ratios using certain tax returns according
+    # to use input
+    mutate(ExpenseRatio = ifelse(
+      !is.null(input$expense_selector) &
+        !(ExpenseType %in% input$expense_selector),
+      NA,
+      ExpenseRatio
+    )) %>%
     # This list of variables is expandable for numeric values without additional
     # code. Non-numeric values will need to be handled differently
     select(
@@ -479,33 +568,50 @@ renderUI({
       CommercialVacancy,
       CommercialRentPerSquareFoot
     ) %>%
-    # Remove outliers from ExpenseRatio, purge_outliers() is defined in helper_functions.R
+    # Remove outliers from ExpenseRatio
+    # purge_outliers() is defined in helper_functions.R
     mutate(across(ExpenseRatio:CommercialRentPerSquareFoot, purge_outliers)) %>%
     # We want the minimum value to be >0 for everything except vacancies
     summarise(
-      # and because of this it needs to be calculated separately from other summary stats
-      across(-c(ResidentialVacancy, CommercialVacancy), ~ min(.x[.x >= 0.01], na.rm = T), .names = "{.col}_Minimum"),
-      # vacancy minimum is likely to be 0 every time
-      across(c(ResidentialVacancy, CommercialVacancy), ~ min(.x, na.rm = T), .names = "{.col}_Minimum"),
-
-      # calculates all other summary statistics
-      # # Not using snake case for initial variable names allows us to omit the above summaries using this match
+      # And because of this it needs to be calculated separately
+      # From other summary stats
+      across(
+        -c(ResidentialVacancy, CommercialVacancy),
+        ~ min(.x[.x >= 0.01], na.rm = TRUE),
+        .names = "{.col}_Minimum"
+      ),
+      # Vacancy minimum is likely to be 0 every time
+      across(
+        c(ResidentialVacancy, CommercialVacancy),
+        ~ min(.x, na.rm = TRUE),
+        .names = "{.col}_Minimum"
+      ),
+      # Calculates all other summary statistics
+      # Not using snake case for initial variable names allows us to omit
+      # the above summaries using this match
       across(!contains("_"),
         # Names the functions in the output column headers
-        list(Mean = mean, `Standard Deviation` = sd, Median = median, Max = max),
+        list(
+          Mean = mean,
+          `Standard Deviation` = sd,
+          Median = median,
+          Max = max
+        ),
         .names = "{.col}_{.fn}",
-        # Passes na.rm = T to all of the listed functions
-        na.rm = T
+        # Passes na.rm = TRUE to all of the listed functions
+        na.rm = TRUE
       ),
-      # count the number of units used to compute each column
+      # Count the number of units used to compute each column
       across(!contains("_"), ~ sum(!is.na(.x)), .names = "{.col}_n"),
     ) %>%
-    # deal with infinites due to missing data in smaller selections
+    # Deal with infinites due to missing data in smaller selections
     rationalize() %>%
-    # Convert into a readable table with each variable or stat being a unique row
+    # Convert into a readable table with each variable or stat
+    # being a unique row
     pivot_longer(
       cols = everything(),
-      # You can switch these two values around to transpose the table b/w variable/stat
+      # You can switch these two values around to transpose the
+      # table b/w variable/stat
       names_to = c(".value", "Statistic"),
       names_pattern = "(.*)_(.*)"
     ) %>%
@@ -516,38 +622,43 @@ renderUI({
       "2 Bedrooms" = "Bedroom2Rent",
       "3 Bedrooms" = "Bedroom3Rent",
       "4+ Bedrooms" = "Bedroom4Rent",
-      "Commercial <br> (per SQFT, Yearly)" = "CommercialRentPerSquareFoot",
+      "Commercial <br> (per SQFTRUE, Yearly)" = "CommercialRentPerSquareFoot",
       "Residential" = "ResidentialVacancy",
       "Commercial" = "CommercialVacancy"
     )
 
   HTML(
     # This section converts the data into something legible by the user
-    rbind(summary_table[1:5,] %>%
-      mutate( # Round expense ratio to two digits
-        `Expense Ratio` = round(`Expense Ratio`, 2),
-        # Convert dollars to dollar values
-        across(
-          .cols = c(`Studio`:`Commercial <br> (per SQFT, Yearly)`),
-          .fns = scales::dollar
+    rbind(
+      summary_table[1:5, ] %>%
+        mutate( # Round expense ratio to two digits
+          `Expense Ratio` = round(`Expense Ratio`, 2),
+          # Convert dollars to dollar values
+          across(
+            .cols = c(`Studio`:`Commercial <br> (per SQFTRUE, Yearly)`),
+            .fns = scales::dollar
+          ),
+          # Round vacancies to whole number
+          across(
+            Residential:Commercial,
+            percent
+          )
         ),
-        # Round vacancies to whole number
-        across(Residential:Commercial,
-          percent)),
-      as.character(summary_table[6,])) %>%
-      # basic table arrangements, label aesthetics
-      # # Tells cell_spec HTML to parse instead of print as a literal string
+      as.character(summary_table[6, ])
+    ) %>%
+      # Basic table arrangements, label aesthetics
+      # Tells cell_spec HTML to parse instead of print as a literal string
       kable(
-        escape = F,
+        escape = FALSE,
         align = "lccccccccc",
         format.args = list(big.mark = ",")
       ) %>%
-      # full-table aesthetics
+      # Full-table aesthetics
       kable_styling(
         font_size = 14,
-        full_width = T
+        full_width = TRUE
       ) %>%
-      # header
+      # Header
       row_spec(0, font_size = 16, background = "#f8f8f8") %>%
       row_spec(0, font_size = 16, background = "#f8f8f8") %>%
       add_header_above(c(" " = 2, "Rent" = 6, "Vacancy" = 2))
@@ -562,16 +673,16 @@ Row
 -----------------------------------------------------------------------
 
 ```{r}
-
 # Data table
-DT::renderDataTable(server = F, {
-  # LegendChoice is a duplicated variable that doesn't need to be included in the download
+DT::renderDataTable(server = FALSE, {
+  # LegendChoice is a duplicated variable that doesn't
+  # need to be included in the download
   DT::datatable(
     clean_for_output(selected_data()),
     extensions = "Buttons",
     options = list(
-      searching = T,
-      scrollX = T,
+      searching = TRUE,
+      scrollX = TRUE,
       scrollY = "600px",
       # https://datatables.net/reference/option/dom
       dom = "Bfrtip",
@@ -588,17 +699,17 @@ Row
 -----------------------------------------------------------------------
 
 ```{r}
-
 # Data table
-DT::renderDataTable(server = F, {
-  # LegendChoice is a duplicated variable that doesn't need to be included in the download
+DT::renderDataTable(server = FALSE, {
+  # LegendChoice is a duplicated variable that doesn't
+  # need to be included in the download
   DT::datatable(
     selected_data() %>% clean_expenses(type = "general"),
     extensions = "Buttons",
     options = list(
-      searching = T,
+      searching = TRUE,
       scrollY = 600,
-      scrollX = T,
+      scrollX = TRUE,
       # https://datatables.net/reference/option/dom
       dom = "Bfrtip",
       buttons = c("copy", "csv", "excel")
@@ -614,17 +725,17 @@ Row
 -----------------------------------------------------------------------
 
 ```{r}
-
 # Data table
-DT::renderDataTable(server = F, {
-  # LegendChoice is a duplicated variable that doesn't need to be included in the download
+DT::renderDataTable(server = FALSE, {
+  # LegendChoice is a duplicated variable that doesn't
+  # need to be included in the download
   DT::datatable(
     selected_data() %>% clean_expenses(type = "hotel"),
     extensions = "Buttons",
     options = list(
-      searching = T,
+      searching = TRUE,
       scrollY = 600,
-      scrollX = T,
+      scrollX = TRUE,
       # https://datatables.net/reference/option/dom
       dom = "Bfrtip",
       buttons = c("copy", "csv", "excel")

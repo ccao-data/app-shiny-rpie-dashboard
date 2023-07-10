@@ -1,9 +1,10 @@
+# nolint start
 # Pull from the Buildings table on RPIE
 qry_buildings <- function(conn) {
   dbGetQuery(
     conn,
-      "
-      SELECT DISTINCT
+    "
+    SELECT DISTINCT
     BUILD.[BuildingId],
     FPIN.[FilingId],
     F.[FilingName],
@@ -114,8 +115,8 @@ qry_generalexpenses <- function(conn) {
 
     --- Income and Expenses via IncomeExpenseGeneral
     LEFT JOIN [RPIE].[dbo].[IncomeExpenseGeneral] IEG ON F.[IncomeExpenseGeneralId] = IEG.[IncomeExpenseGeneralId]
-    ")
-
+    "
+  )
 }
 
 # Pull from the IncomeExpenseHotel table on RPIE
@@ -131,15 +132,15 @@ qry_hotelexpenses <- function(conn) {
 
     --- Income and Expenses via IncomeExpenseHotel
     LEFT JOIN [RPIE].[dbo].[IncomeExpenseHotel] IEH ON F.[IncomeExpenseHotelId] = IEH.[IncomeExpenseHotelId]
-    ")
-
+    "
+  )
 }
 
 # Pull from ResidentialSpaces on RPIE
 qry_res_spaces <- function(conn) {
   dbGetQuery(
     conn,
-      "
+    "
       WITH RS AS (SELECT *,
 
 CASE WHEN [BedroomCount] = 'Studio' THEN 0 ELSE CAST(REPLACE([BedroomCount], '+', '') AS FLOAT) END AS [Beds],
@@ -222,7 +223,7 @@ SELECT
 qry_com_spaces <- function(conn) {
   dbGetQuery(
     conn,
-      "
+    "
       SELECT
           [BuildingId],
           CASE
@@ -298,3 +299,4 @@ qry_pins <- function(conn) {
   "
   )
 }
+# nolint end
