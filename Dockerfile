@@ -27,7 +27,7 @@ FROM rocker/r-ver:4.2.2
 # dependencies, add them to EXTRA_APT_DEPS. APT_DEPS lists the dependencies for
 # all database-connected shiny apps
 ARG APT_DEPS="libcairo2-dev libcurl4-gnutls-dev libssl-dev libxt-dev tar tdsodbc unixodbc unixodbc-dev wget"
-ARG EXTRA_APT_DEPS="libudunits2-dev gdal-bin libgdal-dev odbcinst"
+ARG EXTRA_APT_DEPS="libudunits2-dev gdal-bin libgdal-dev odbcinst pandoc"
 
 # Create and set the default working dir for our application. This is where
 # code will live and execute from
