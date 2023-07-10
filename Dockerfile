@@ -27,7 +27,7 @@ FROM rocker/r-ver:4.2.2
 # dependencies, add them to EXTRA_APT_DEPS. APT_DEPS lists the dependencies for
 # all database-connected shiny apps
 ARG APT_DEPS="libcairo2-dev libcurl4-gnutls-dev libssl-dev libxt-dev tar tdsodbc unixodbc unixodbc-dev wget"
-ARG EXTRA_APT_DEPS="libudunits2-dev gdal-bin libgdal-dev"
+ARG EXTRA_APT_DEPS="libudunits2-dev gdal-bin libgdal-dev odbcinst"
 
 # Create and set the default working dir for our application. This is where
 # code will live and execute from
@@ -54,7 +54,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 
 # Install ODBC drivers for MS SQL. These are used to establish a connection
 # to CCAO's existing SQL server
-RUN wget --no-verbose https://packages.microsoft.com/debian/9/prod/pool/main/m/msodbcsql17/msodbcsql17_17.4.2.1-1_amd64.deb -O /tmp/msodbc.deb \
+RUN wget --no-verbose https://packages.microsoft.com/ubuntu/22.04/prod/pool/main/m/msodbcsql17/msodbcsql17_17.10.4.1-1_amd64.deb -O /tmp/msodbc.deb \
     && ACCEPT_EULA=Y apt-get install /tmp/msodbc.deb
 
 
