@@ -1,9 +1,9 @@
 # TEMPLATE DOCKERFILE FOR CCAO SHINY APPS
 
 # This Dockerfile serves as a minimal template for CCAO shiny applications
-# It is used in conjunction with .gitlab-ci.yml to create Docker images
-# which are stored in CCAO's GitLab container registry and later deployed to
-# shinyproxy. The build here has five general steps:
+# It is used in conjunction with GitHub Actions to create Docker images
+# which are stored in CCAO's GitHub container registry and later deployed to
+# ShinyProxy. The build here has five general steps:
 
 # 1) SETUP. Create the necessary folders and permissions to run the app
 # 2) DEPENDENCIES. Install linux backend libraries needed by certain R libs
@@ -20,7 +20,7 @@
 ### SETUP ###
 
 # Use the shiny image as a base
-FROM rocker/shiny-verse:4.0.2
+FROM rocker/r-ver:4.2.2
 
 # Arguments that get passed to apt to install linux dependencies. Formatted as
 # strings with libraries separated by a space. If an app is missing linux
@@ -67,14 +67,20 @@ RUN wget --no-verbose https://packages.microsoft.com/debian/9/prod/pool/main/m/m
 COPY .Rprofile renv.lock /app/
 COPY renv/activate.R /app/renv/activate.R
 
-# Set arrow package build arg to enable snappy compression
-ARG ARROW_WITH_SNAPPY=ON
+# Docker containers run as root by default, which is extremely unsafe from a
+# security perspective. Always use the minimum possible privileges when running
+# an application. In this case, create a user and group, both named shiny,
+# and run the container with that user after chowning the working directory
+# This step is completed here because recursively chowning the renv library
+# takes a very long time, better to install packages as the user shiny
+RUN useradd --no-log-init --user-group -mr shiny && chown -R shiny:shiny /app/
+USER shiny
 
 # Install R packages necessary for the reporting scripts
 # The renv package is used to version lock to specific R packages
 # renv.lock contains a list of all packages needed to run the application,
 # and it will install all these packages by running the command renv::restore()
-RUN R -e 'renv::restore()'
+RUN R -e 'renv::settings$use.cache(FALSE); renv::restore()'
 
 
 ### COPY CODE ###
@@ -99,8 +105,9 @@ COPY --chown=shiny:shiny . /app/
 ### LABELLING ###
 
 # Build arguments used to label the container, these variables are predefined
-# as part of GitLab. They get passed to the container as build-args in the
-# .gitlab-ci.yml file. These arguments only exist when building the container
+# as part of GitHub Actions. They get passed to the container as build-args
+# in the Actions workflow. These arguments only exist when building the
+# container
 ARG VCS_NAME
 ARG VCS_URL
 ARG VCS_REF
@@ -111,8 +118,7 @@ ARG VCS_NAMESPACE
 
 # Environmental variables that are passed to the container. These variables
 # exist inside each app and can be called from R. They are used to create a
-# version number in the application UI as well as link to the GitLab
-# Service Desk
+# version number in the application UI as well as link to GitHub
 ENV VCS_NAME=$VCS_NAME
 ENV VCS_URL=$VCS_URL
 ENV VCS_REF=$VCS_REF
@@ -124,7 +130,7 @@ ENV VCS_NAMESPACE=$VCS_NAMESPACE
 # Create labels for the container. These are standardized labels defined by
 # label-schema.org. Many applications look for these labels in order to display
 # information about a container
-LABEL maintainer "Dan Snow <dsnow@cookcountyassessor.com>"
+LABEL maintainer "Dan Snow <daniel.snow@cookcountyil.gov>"
 LABEL com.centurylinklabs.watchtower.enable="true"
 LABEL org.opencontainers.image.title=$VCS_NAME
 LABEL org.opencontainers.image.source=$VCS_URL
