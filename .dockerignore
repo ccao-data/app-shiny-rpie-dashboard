@@ -1,27 +1,18 @@
-# Don't add git files to build context
 .git/
+.github/
 .gitattributes
 .gitignore
 .gitmodules
-.gitlab-ci.yml
-.gitlab/
-
-# Ignore git-related markdown files
 .dockerignore
 LICENSE
 README.md
 CONTRIBUTING.md
 CHANGELOG
-
-# Don't include secrets files in build
 secrets/
-
-# No renv content in build except activate.R
 renv/
 !renv/activate.R
-
-# Ignore R project files
-*.Rproj
+!renv/settings*
 .Rproj.user/
 .Rhistory
+*.Rproj
 *.Rhistory
